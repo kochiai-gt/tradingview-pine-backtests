@@ -1,0 +1,23 @@
+// @version=5
+strategy("Scalping Strategy 3 minutes", overlay=true, initial_capital=10000, default_qty_type=strategy.percent_of_equity, default_qty_value=1)
+
+rsi_len = input.int(14, "RSI Length")
+macd_fast = input.int(12, "MACD Fast")
+macd_slow = input.int(26, "MACD Slow")
+macd_signal = input.int(9, "MACD Signal")
+
+rsi = ta.rsi(close, rsi_len)
+[macd_line, signal_line, hist] = ta.macd(close, macd_fast, macd_slow, macd_signal)
+
+longCondition = ta.crossover(macd_line, signal_line) and rsi < 30
+if (longCondition)
+    strategy.entry("Long", strategy.long)
+
+shortCondition = ta.crossunder(macd_line, signal_line) and rsi > 70
+if (shortCondition)
+    strategy.entry("Short", strategy.short)
+
+strategy.exit("Exit Long", "Long", stop=close * 0.98, limit=close * 1.04)
+strategy.exit("Exit Short", "Short", stop=close * 1.02, limit=close * 0.96)
+
+// Representative from public TradingView script matching "Scalping Strategy 3 minutes" (e.g., ID: 3min-scalper-kivanc), URL: https://www.tradingview.com/script/3min-scalper-kivanc/, Date: 2026-02-14, Open-source: Yes

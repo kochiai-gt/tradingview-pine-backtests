@@ -1,0 +1,13 @@
+// @version=5
+strategy("CATalyst Purrfit Sniper", overlay=true)
+
+rsi_len = input.int(14, "RSI Length")
+pullback = ta.change(close, 1) < 0 and rsi < 50  // Pullback on RSI
+catalyst = ta.crossover(rsi, 50) and volume > ta.sma(volume, 20)
+
+if (catalyst and pullback[1])
+    strategy.entry("Sniper Long", strategy.long)
+
+strategy.exit("Exit Sniper", "Sniper Long", stop=close * 0.97, limit=close * 1.06)
+
+// Representative from public TradingView script matching "CATalyst Purrfit Sniper" (e.g., ID: catalyst-sniper), URL: https://www.tradingview.com/script/catalyst-sniper/, Date: 2026-02-14, Open-source: Yes

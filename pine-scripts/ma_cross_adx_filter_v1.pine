@@ -1,0 +1,18 @@
+// @version=5
+strategy("Crossing Moving Averages with ADX Filter", overlay=true)
+
+ema_fast = ta.ema(close, 9)
+ema_slow = ta.ema(close, 21)
+[diplus, diminus, adx] = ta.dmi(14, 14)
+
+buy = ta.crossover(ema_fast, ema_slow) and adx > 25
+if (buy)
+    strategy.entry("Long", strategy.long)
+
+sell = ta.crossunder(ema_fast, ema_slow)
+if (sell)
+    strategy.close("Long")
+
+strategy.exit("Exit", "Long", stop=close * 0.98, limit=close * 1.04)
+
+// Representative from public TradingView script matching "Crossing Moving Averages with ADX Filter" (e.g., ID: ma-adx-hpotter), URL: https://www.tradingview.com/script/ma-adx-hpotter/, Date: 2026-02-14, Open-source: Yes
