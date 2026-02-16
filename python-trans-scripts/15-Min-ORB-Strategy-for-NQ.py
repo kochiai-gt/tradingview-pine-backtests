@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from backtesting import Backtest, Strategy
 import yfinance as yf
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 import pytz
 
 class ORBStrategy(Strategy):
@@ -182,7 +182,7 @@ class ORBStrategy(Strategy):
             self.trail_price = np.nan
 
 # Fetch data (adjust dates as needed; using historical for example)
-data = yf.download('NQ=F', start='2023-01-01', end='2024-01-01', interval='15m')
+data = yf.download('NQ=F', start=(datetime.now(pytz.timezone('UTC')) - timedelta(days=59)).strftime('%Y-%m-%d'), end=datetime.now(pytz.timezone('UTC')).strftime('%Y-%m-%d'), interval='15m')
 data = data.dropna()  # Clean data
 
 # Run backtest
