@@ -35,6 +35,13 @@ class ORBStrategy(Strategy):
         self.sl_level = np.nan
         self.direction = 0  # 1 for long, -1 for short
 
+    def partial_close(self, fraction):
+        size_to_close = abs(self.position.size) * fraction
+        if self.position.is_long:
+            self.sell(size=size_to_close)
+        elif self.position.is_short:
+            self.buy(size=size_to_close)
+
     def is_new_day(self):
         if len(self.data) < 2:
             return False
@@ -132,14 +139,14 @@ class ORBStrategy(Strategy):
                 remaining_fraction = 1.0
                 if high >= tp1_price and self.tp1_percent > 0:
                     fraction = self.tp1_percent / 100
-                    self.position.close(fraction=fraction)
+                    self.partial_close(fraction)
                     remaining_fraction -= fraction
                 if high >= tp2_price and self.tp2_percent > 0:
                     fraction = self.tp2_percent / 100 * remaining_fraction  # Adjust for remaining
-                    self.position.close(fraction=fraction)
+                    self.partial_close(fraction)
                     remaining_fraction -= fraction
                 if high >= tp3_price and self.tp3_percent > 0:
-                    self.position.close()  # Close remaining
+                    self.partial_close(1.0)  # Close remaining
             elif self.direction == -1:  # Short
                 risk = (self.or_high + self.sl_buffer) - self.entry_price
                 tp1_price = self.entry_price - (risk * self.rr1)
@@ -165,14 +172,14 @@ class ORBStrategy(Strategy):
                 remaining_fraction = 1.0
                 if low <= tp1_price and self.tp1_percent > 0:
                     fraction = self.tp1_percent / 100
-                    self.position.close(fraction=fraction)
+                    self.partial_close(fraction)
                     remaining_fraction -= fraction
                 if low <= tp2_price and self.tp2_percent > 0:
                     fraction = self.tp2_percent / 100 * remaining_fraction
-                    self.position.close(fraction=fraction)
+                    self.partial_close(fraction)
                     remaining_fraction -= fraction
                 if low <= tp3_price and self.tp3_percent > 0:
-                    self.position.close()  # Close remaining
+                    self.partial_close(1.0)  # Close remaining
 
             # EOD close
             if self.is_eod():
