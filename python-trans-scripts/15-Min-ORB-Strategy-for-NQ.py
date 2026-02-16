@@ -36,7 +36,7 @@ class ORBStrategy(Strategy):
         self.direction = 0  # 1 for long, -1 for short
 
     def partial_close(self, fraction):
-        size_to_close = abs(self.position.size) * fraction
+        size_to_close = max(1.0, round(abs(self.position.size) * fraction))
         if self.position.is_long:
             self.sell(size=size_to_close)
         elif self.position.is_short:
