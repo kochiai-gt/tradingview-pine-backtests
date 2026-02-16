@@ -1,0 +1,54 @@
+//@version=5
+strategy(\"ORB + Key Session Levels Strategy\", \"ORB Strategy v1.0\", overlay=true, initial_capital=10000, default_qty_type=strategy.fixed, default_qty_value=1, commission_type=strategy.commission.percent, commission_value=0.1, slippage=2, max_boxes_count=500, max_lines_count=500, max_labels_count=500)
+
+// ══════════════════════════════════════════════════════════════════════════════
+// INPUTS
+// ══════════════════════════════════════════════════════════════════════════════
+
+grpORB = \"Opening Range\"
+showORB = input.bool(true, \"Show ORB\", group=grpORB)
+orbStartTime = input.string(\"0930\", \"Start Time (HHMM ET)\", tooltip=\"Enter time in 24hr format. Examples: 0800, 0930, 1400\", group=grpORB)
+orbDuration = input.string(\"15 Min\", \"Duration\", options=[\"5 Min\", \"15 Min\", \"30 Min\", \"1 Hour\", \"Custom\"], group=grpORB)
+orbCustomEnd = input.string(\"0945\", \"Custom End (HHMM ET)\", tooltip=\"Only used when Duration is 'Custom'\", group=grpORB)
+showMidline = input.bool(true, \"Show Midline\", group=grpORB)
+orbHistory = input.int(1, \"Days to Show\", minval=1, maxval=20, group=grpORB)
+orbLineWidth = input.int(3, \"Line Thickness\", minval=1, maxval=5, group=grpORB)
+orbHighColor = input.color(color.new(#00d4ff, 0), \"High Color\", group=grpORB)
+orbLowColor = input.color(color.new(#00d4ff, 0), \"Low Color\", group=grpORB)
+orbMidColor = input.color(color.new(#00d4ff, 50), \"Midline Color\", group=grpORB)
+
+// ── ORB TRADE SIGNALS ──
+grpSignals = \"ORB Trade Signals\"
+i_enableSignals = input.bool(true, \"Enable Trade Signals\", tooltip=\"Execute trades on ORB break.\", group=grpSignals)
+i_orbEntryMode = input.string(\"Breakout\", \"Entry Mode\", options=[\"Breakout\", \"Retest Zone\", \"Retest Midpoint\"], tooltip=\"Breakout: enter on candle close through level.\\nRetest Zone: wait for candle to wick back to the broken level and close outside.\\nRetest Midpoint: wait for candle to wick back to ORB midpoint and close outside.\", group=grpSignals)
+i_orbRetestTimeout = input.int(20, \"Retest Timeout (bars)\", minval=3, maxval=100, tooltip=\"Max bars to wait for retest after breakout. Resets if no retest. Only used in Retest modes.\", group=grpSignals)
+i_orbSLMethod = input.string(\"Midpoint\", \"Stop Loss\", options=[\"Midpoint\", \"Opposite Side\", \"Fixed Points\"], tooltip=\"Midpoint: SL at middle of ORB range.\\nOpposite Side: SL at ORB low (long) / ORB high (short).\\nFixed Points: user-defined distance from entry.\", group=grpSignals)
+i_orbSLPoints = input.float(20.0, \"SL Fixed Points\", minval=0.25, step=0.25, tooltip=\"Only used when SL = Fixed Points.\", group=grpSignals)
+i_orbContracts = input.int(3, \"Total Contracts\", minval=1, maxval=1000, tooltip=\"Total position size in contracts/shares.\", group=grpSignals)
+i_orbTP1RR = input.float(1.0, \"TP1 R:R\", minval=0.1, step=0.1, group=grpSignals, inline=\"tp1\")
+i_orbTP1Qty = input.int(1, \"Close Qty\", minval=0, maxval=1000, tooltip=\"Contracts/shares to close at TP1.\", group=grpSignals, inline=\"tp1\")
+i_orbTP2RR = input.float(2.0, \"TP2 R:R\", minval=0.1, step=0.1, group=grpSignals, inline=\"tp2\")
+i_orbTP2Qty = input.int(1, \"Close Qty\", minval=0, maxval=1000, tooltip=\"Contracts/shares to close at TP2.\", group=grpSignals, inline=\"tp2\")
+i_orbTP3RR = input.float(3.0, \"TP3 R:R\", minval=0.1, step=0.1, group=grpSignals, inline=\"tp3\")
+i_orbTP3Qty = input.int(0, \"Close Qty\", minval=0, maxval=1000, tooltip=\"Contracts/shares to close at TP3. Set 0 to close all remaining.\", group=grpSignals, inline=\"tp3\")
+i_orbMoveToBE = input.bool(true, \"Move SL to BE after TP1\", tooltip=\"Automatically move stop loss to break-even (entry price) after TP1 is hit.\", group=grpSignals)
+i_orbShowSLTP = input.bool(true, \"Show SL/TP Lines\", group=grpSignals)
+i_orbShowEntry = input.bool(true, \"Show Entry Arrows\", group=grpSignals)
+
+grpSessions = \"Session Mode\"
+sessionMode = input.string(\"Full Sessions\", \"Mode\", options=[\"Kill Zones\", \"Full Sessions\"], tooltip=\"Kill Zones: Non-overlapping high-activity windows\\nFull Sessions: Traditional full session times\", group=grpSessions)
+
+grpPD = \"Previous Day\"
+showPDHL = input.bool(true, \"Show PDH/PDL\", group=grpPD)
+pdSource = input.string(\"RTH Only\", \"PDH/PDL Source\", options=[\"RTH Only\", \"Full Session (Futures)\"], tooltip=\"RTH Only: 9:30 AM - 4:00 PM ET (cash market hours)\\nFull Session: 6:00 PM - 5:00 PM ET (futures 23hr session)\", group=grpPD)
+rthStart = input.string(\"0930\", \"RTH Start (HHMM ET)\", tooltip=\"Regular Trading Hours start - used when Source = RTH Only\", group=grpPD)
+rthEnd = input.string(\"1600\", \"RTH End (HHMM ET)\", tooltip=\"Regular Trading Hours end - used when Source = RTH Only\", group=grpPD)
+fullSessionStart = input.string(\"1800\", \"Full Session Start (HHMM ET)\", tooltip=\"Futures session start (previous day 6pm) - used when Source = Full Session\", group=grpPD)
+fullSessionEnd = input.string(\"1700\", \"Full Session End (HHMM ET)\", tooltip=\"Futures session end (5pm) - used when Source = Full Session\", group=grpPD)
+pdHistory = input.int(1, \"Days to Show\", minval=0, maxval=10, group=grpPD)
+pdLineWidth = input.int(1, \"Line Thickness\", minval=1, maxval=5, group=grpPD)
+pdhColor = input.color(color.new(color.yellow, 0), \"Color\", group=grpPD)
+
+grpAsian = \"Asian Session\"
+showAsian = input.bool(true, \"Show Asian H/L\", group=grpAsian)
+showAsianBox = input.bool(false, \"Show Session Box\", tooltip=\"Draw a box around the Asian session range\", group=grpAsian)
