@@ -183,7 +183,10 @@ class ORBStrategy(Strategy):
 
 # Fetch data (adjust dates as needed; using historical for example)
 data = yf.download('NQ=F', start=(datetime.now(pytz.timezone('UTC')) - timedelta(days=59)).strftime('%Y-%m-%d'), end=datetime.now(pytz.timezone('UTC')).strftime('%Y-%m-%d'), interval='15m')
-data = data.dropna()  # Clean data
+data = data.dropna()
+if isinstance(data.columns, pd.MultiIndex):
+    data.columns = data.columns.get_level_values(0)
+data = data[['Open', 'High', 'Low', 'Close', 'Volume']]  # Ensure OHLCV exact for backtesting.py
 
 # Run backtest
 bt = Backtest(data, ORBStrategy, cash=100_000, margin=1/10, commission=0.0001)  # Approximate futures margin/commission
