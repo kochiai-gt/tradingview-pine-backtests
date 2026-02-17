@@ -1,0 +1,63 @@
+// Modified by Gemini [TRIGGER HAPPY ELITE v0.2 - GHOST PROTOCOL]
+//@version=5
+strategy("Trigger Happy Elite v0.2", overlay=true, initial_capital=50000, default_qty_type=strategy.fixed, default_qty_value=4, calc_on_every_tick=true)
+
+// --- INPUTS ---
+grp_con = "Position Sizing & Targets"
+contract_qty = input.int(4, "Number of Contracts (Micros)", minval=1, group=grp_con)
+daily_profit_target = input.float(2000.0, "Daily Profit Goal ($)", group=grp_con)
+daily_loss_limit = input.float(350.0, "Max Daily Loss ($)", group=grp_con)
+
+grp_time = "Trading Session"
+use_time_filter = input.bool(false, "Enable Trading Window?", group=grp_time)
+trading_session = input.session("0930-1545", "Session Time (EST)", group=grp_time)
+timezone = "America/New_York"
+
+grp_risk = "Elite Risk Settings"
+tp_ticks = input.int(250, "Take Profit (Ticks)", group=grp_risk)
+sl_ticks = input.int(45, "Hard Stop Loss (Ticks)", group=grp_risk)
+trail_activation = input.int(20, "Trail Activation (Ticks)", group=grp_risk)
+
+grp_filt = "Sniper & Ghost Filters"
+trade_ghosts = input.bool(true, "Trade Ghost Reversals (👻)?", group=grp_filt)
+atr_min = input.float(2.2, "Min ATR Volatility", group=grp_filt)
+rsi_buy = input.int(45, "Max RSI for Buy", group=grp_filt)
+rsi_sell = input.int(55, "Min RSI for Sell", group=grp_filt)
+
+// --- LOGIC ---
+var float start_day_profit = 0.0
+is_new_day = ta.change(time("D", timezone)) != 0
+if is_new_day
+    start_day_profit := strategy.netprofit
+
+current_daily_profit = strategy.netprofit - start_day_profit
+can_trade_today = current_daily_profit < daily_profit_target and current_daily_profit > -daily_loss_limit
+
+in_session = not use_time_filter or not na(time(timeframe.period, trading_session, timezone))
+
+length = 1
+ph = ta.pivothigh(length, length)
+pl = ta.pivotlow(length, length)
+rsi = ta.rsi(close, 14)
+atr = ta.atr(14)
+
+ghost_high = ph and high[length] < ta.highest(high, 50)[length+1]
+ghost_low = pl and low[length] > ta.lowest(low, 50)[length+1]
+
+// --- GHOST MESSAGES (FIXED PER GHOST AI SUPPORT) ---
+// Swapped "direction" for "action" and removed "qty" to prevent conflict
+buy_msg = '{"ticker": "' + syminfo.ticker + '", "action": "buy", "price": ' + str.tostring(close) + '}'
+sell_msg = '{"ticker": "' + syminfo.ticker + '", "action": "sell", "price": ' + str.tostring(close) + '}'
+exit_msg = '{"ticker": "' + syminfo.ticker + '", "action": "close"}'
+
+// --- EXECUTION ---
+buy_signal = in_session and can_trade_today and strategy.position_size == 0 and (pl or (trade_ghosts and ghost_low)) and rsi < rsi_buy and atr > atr_min
+sell_signal = in_session and can_trade_today and strategy.position_size == 0 and (ph or (trade_ghosts and ghost_high)) and rsi > rsi_sell and atr > atr_min
+
+if buy_signal
+    strategy.entry("Long", strategy.long, qty=contract_qty, comment="🎯 TRIGGER BUY", alert_message=buy_msg)
+
+if sell_signal
+    strategy.entry("Short", strategy.short, qty=contract_qty, comment="🎯 TRIGGER SELL", alert_message=sell_msg)
+
+strategy.exit("Exit", loss=sl_ticks, profit=tp_ticks, trail_points=trail_activation, trail_offset=10, alert_message=exit_msg)
